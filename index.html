@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>影片分析系統</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>影片分析系統</h1>
+
+    <form action="/analyze" method="post" enctype="multipart/form-data">
+        <label>貼上 YouTube 連結：</label>
+        <input type="text" name="youtube_url" placeholder="https://www.youtube.com/watch?v=...">
+
+        <label>或上傳影片檔案：</label>
+        <input type="file" name="file" accept="video/*">
+
+        <label>影片畫質選擇：</label>
+        <select name="quality">
+            <option value="best">自動選擇最佳畫質</option>
+            <option value="720p">720p (推薦)</option>
+            <option value="480p">480p (較快)</option>
+        </select>
+
+        <label>分析模式：</label>
+        <select name="analysis_mode">
+            <option value="balanced">平衡模式 (推薦)</option>
+            <option value="fast">快速模式 (較快但精度較低)</option>
+            <option value="accurate">精確模式 (較慢但精度較高)</option>
+        </select>
+
+        <!-- IG Story 裁剪滑桿 -->
+        <label>裁剪影片片段：</label>
+        <div id="rangeContainer">
+            <span class="time-label" id="startLabel">0s</span>
+            <input type="range" id="startRange" name="start" min="0" value="0">
+            <input type="range" id="endRange" name="end" min="0" value="0">
+            <span class="time-label" id="endLabel">結束</span>
+        </div>
+
+        <button type="submit">下載並分析影片</button>
+    </form>
+
+    <script>
+        // 從後端傳入的影片長度（秒）
+        const videoDuration = {{ video_duration|default(100) }};
+
+        const startRange = document.getElementById('startRange');
+        const endRange = document.getElementById('endRange');
+        const startLabel = document.getElementById('startLabel');
+        const endLabel = document.getElementById('endLabel');
+
+        // 初始化滑桿最大值
+        startRange.max = videoDuration;
+        endRange.max = videoDuration;
+        endRange.value = videoDuration;
+        endLabel.textContent = videoDuration + "s";
+
+        // 開始滑桿變化
+        startRange.addEventListener('input', () => {
+            let startSec = Math.min(startRange.value, endRange.value);
+            startLabel.textContent = startSec + "s";
+            startRange.value = startSec;
+        });
+
+        // 結束滑桿變化
+        endRange.addEventListener('input', () => {
+            let endSec = Math.max(endRange.value, startRange.value);
+            endLabel.textContent = endSec + "s";
+            endRange.value = endSec;
+        });
+    </script>
+</body>
+</html>
