@@ -7,6 +7,8 @@ import uuid
 import numpy as np
 from collections import deque
 import re
+import json
+import joblib
 
 # ========== 模組導入 ==========
 try:
@@ -21,6 +23,111 @@ UPLOAD_FOLDER = 'uploads'
 PROCESSED_FOLDER = 'static/processed'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(PROCESSED_FOLDER, exist_ok=True)
+
+
+# 允許的招式列表（依照實際訓練資料）
+ALLOWED_MOVES_DEFAULT = {
+    'forward_weave': '正八',
+    'backward_weave': '反八',
+    'butterfly': '蝴蝶',
+    'head_roll': '繞頭',
+    'three_beat_weave': '三轉',
+    '2beat': '2beat',
+    '3beat': '3beat',
+    '4beat': '4beat',
+    'flower_3petal': '三葉花',
+    'flower_4petal': '四葉花',
+    'continuous_toss': '連拋',
+    'crosser': 'crosser',
+    '4petal': '四葉',
+    '4petal_iso': '四葉(加iso)',
+    'side_4petal': '側四葉',
+    'cap': 'cap',
+    'stall': '停球',
+    'isolation': 'isolation'
+}
+ALLOWED_MOVE_KEYS = set(ALLOWED_MOVES_DEFAULT.keys())
+
+
+# ========== 載入招式列表 ==========
+def load_move_names():
+    """載入招式列表（優先從模型，其次從配置檔，最後用預設值）"""
+    moves_dict = {}
+
+    # 方法1: 從訓練好的模型中載入（最準確）
+    model_file = 'fire_dance_model.pkl'
+    if os.path.exists(model_file):
+        try:
+            model_data = joblib.load(model_file)
+            if isinstance(model_data, dict) and 'moves' in model_data:
+                # 只保留允許的 key
+                moves_dict = {k: v for k, v in model_data['moves'].items() if k in ALLOWED_MOVE_KEYS}
+                print(f"✅ 從模型載入 {len(moves_dict)} 種招式")
+                if moves_dict:
+                    return moves_dict
+        except Exception as e:
+            print(f"⚠️  無法從模型載入招式: {e}")
+
+    # 方法2: 從配置檔載入
+    config_file = 'move_config.json'
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                moves = config.get('moves', {})
+                special = config.get('special_moves', {})
+                merged = {**moves, **special}
+                moves_dict = {k: v for k, v in merged.items() if k in ALLOWED_MOVE_KEYS}
+                print(f"✅ 從配置檔載入 {len(moves_dict)} 種招式")
+                if moves_dict:
+                    return moves_dict
+        except Exception as e:
+            print(f"⚠️  無法從配置檔載入招式: {e}")
+
+    # 方法3: 從訓練數據中讀取實際使用的招式
+    training_file = 'training_data/training_dataset.csv'
+    if os.path.exists(training_file):
+        try:
+            # 延遲 import pandas（如果系統沒有 pandas，不會在啟動時 crash）
+            import pandas as pd
+            df = pd.read_csv(training_file)
+            # 檢查是否有 move 欄位
+            if 'move' in df.columns:
+                moves_dict = {}
+                if 'move_zh' in df.columns:
+                    # 如果有中文欄位，使用中英對應
+                    for _, row in df[['move', 'move_zh']].drop_duplicates().iterrows():
+                        mv = row['move']
+                        mvzh = row['move_zh']
+                        if mv in ALLOWED_MOVE_KEYS:
+                            moves_dict[mv] = mvzh
+                else:
+                    # 沒有中文欄位，將英文代碼當成名稱
+                    for move in df['move'].unique():
+                        if move in ALLOWED_MOVE_KEYS:
+                            moves_dict[move] = move
+                if moves_dict:
+                    print(f"✅ 從訓練數據載入 {len(moves_dict)} 種招式")
+                    return moves_dict
+            else:
+                print("⚠️  訓練資料缺少 'move' 欄位，跳過訓練資料載入")
+        except Exception as e:
+            print(f"⚠️  無法從訓練數據載入招式: {e}")
+
+    # 方法4: 使用預設值（僅保留指定招式）
+    print("⚠️  使用預設招式列表（限定 18 種）")
+    return ALLOWED_MOVES_DEFAULT.copy()
+
+
+# 載入招式列表
+MOVES_DICT = load_move_names()
+
+# 創建 MOVE_NAMES_EN（用於向後兼容）
+MOVE_NAMES_EN = {}
+for move_key, move_zh in MOVES_DICT.items():
+    move_en = move_key  # 使用英文代碼作為英文名稱
+    MOVE_NAMES_EN[move_key] = move_en
+    MOVE_NAMES_EN[move_zh] = move_en
 
 
 # ========== 工具函數 ==========
@@ -193,28 +300,25 @@ def analyze_move_advanced(trajectory, pose_landmarks=None):
 
 
 MOVE_NAMES_EN = {
-    'horizontal_sweep': 'Horizontal Sweep',
-    'vertical_sweep': 'Vertical Sweep',
-    'figure_8': 'Figure 8',
-    'infinity': 'Infinity',
-    'poi_spin': 'POI Spin',
-    'butterfly': 'Butterfly',
-    'windmill': 'Windmill',
-    'isolation': 'Isolation',
-    '水平掃動': 'Horizontal Sweep',
-    '垂直掃動': 'Vertical Sweep',
-    '8字形': 'Figure 8',
-    '無限符號': 'Infinity',
-    'POI旋轉': 'POI Spin',
-    '蝴蝶': 'Butterfly',
-    '風車': 'Windmill',
-    '分離': 'Isolation',
-    '快速移動': 'Fast Movement',
-    '旋轉': 'Rotation',
-    '準備中': 'Preparing',
-    '未知動作': 'Unknown Move'
+    '正八': 'forward_weave',
+    '反八': 'backward_weave',
+    '蝴蝶': 'butterfly',
+    '繞頭': 'head_roll',
+    '三轉': 'three_beat_weave',
+    '2beat': '2beat',
+    '3beat': '3beat',
+    '4beat': '4beat',
+    '三葉花': 'flower_3petal',
+    '四葉花': 'flower_4petal',
+    '四葉': '4petal',
+    '四葉(加iso)': '4petal_with_isolation',
+    '側四葉': 'side_4petal',
+    'cap': 'cap',
+    '連拋': 'continuous_toss',
+    'crosser': 'crosser',
+    '停球': 'stall',
+    'isolation': 'isolation'
 }
-
 
 def merge_move_timeline(move_timeline, min_duration=0.0):
     """將連續相同的動作合併成時間段（包含所有動作）"""
@@ -399,6 +503,19 @@ def process_video_enhanced(input_path, output_path, analysis_mode='balanced'):
     """改進版影片處理函數 - 固定每 0.5 秒偵測一次"""
     print(f"開始分析影片: {input_path}")
 
+    # 初始化 FireDanceAnalyzer 並載入模型
+    analyzer = None
+    use_ml_model = False
+    if FireDanceAnalyzer is not None:
+        analyzer = FireDanceAnalyzer()
+        if analyzer.load_model('fire_dance_model.pkl'):
+            use_ml_model = True
+            print("✅ 使用訓練好的機器學習模型進行識別")
+        else:
+            print("⚠️  未找到訓練好的模型，將使用啟發式規則")
+    else:
+        print("⚠️  FireDanceAnalyzer 不可用，將使用啟發式規則")
+
     cap = cv2.VideoCapture(input_path)
     if not cap.isOpened():
         raise Exception(f"無法開啟影片檔案: {input_path}")
@@ -479,6 +596,7 @@ def process_video_enhanced(input_path, output_path, analysis_mode='balanced'):
         current_time = frame_count / fps
 
         stable_move = "準備中"
+        stable_move_code_for_save = None  # 用於保存英文代碼
         avg_confidence = 0.0
         tool_type = "auto"
 
@@ -569,7 +687,66 @@ def process_video_enhanced(input_path, output_path, analysis_mode='balanced'):
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             pose_results = pose.process(rgb_frame)
 
-            if len(fire_trajectory) > 5:
+            # 使用機器學習模型或啟發式規則進行招式識別
+            if use_ml_model and analyzer and pose_results.pose_landmarks:
+                # 使用訓練好的模型
+                try:
+                    features = analyzer.extract_pose_features(pose_results.pose_landmarks)
+                    if features is not None and analyzer.is_trained:
+                        features_scaled = analyzer.scaler.transform(features.reshape(1, -1))
+                        predicted_move_code = analyzer.classifier.predict(features_scaled)[0]
+                        confidence = np.max(analyzer.classifier.predict_proba(features_scaled))
+                        
+                        # 轉換為中文名稱（模型返回的是英文代碼）
+                        predicted_move_zh = analyzer.get_move_description(predicted_move_code)
+                        
+                        # 只保留高置信度的預測
+                        if confidence > 0.3:  # 降低閾值以獲得更多預測
+                            # 使用英文代碼作為key，方便後續處理
+                            move_history.append((predicted_move_code, confidence))
+                            
+                            if len(move_history) >= 1:
+                                recent_slice = list(move_history)[-1:]
+                                recent_moves = [move for move, conf in recent_slice]
+                                move_counts = {}
+                                for move in recent_moves:
+                                    move_counts[move] = move_counts.get(move, 0) + 1
+                                
+                                stable_move_code = max(move_counts, key=move_counts.get)
+                                avg_confidence = np.mean([conf for move, conf in recent_slice
+                                                          if move == stable_move_code])
+                                
+                                # 轉換為中文顯示（用於顯示，但保存時用英文代碼）
+                                stable_move_zh = analyzer.get_move_description(stable_move_code)
+                                stable_move = stable_move_zh  # 用於顯示
+                                stable_move_code_for_save = stable_move_code  # 保存英文代碼
+                        else:
+                            stable_move = "準備中"
+                            avg_confidence = 0.0
+                    else:
+                        # 如果無法提取特徵，使用啟發式規則
+                        if len(fire_trajectory) > 5:
+                            current_move, confidence = analyze_move_advanced(
+                                list(fire_trajectory), pose_results.pose_landmarks
+                            )
+                            move_history.append((current_move, confidence))
+                            
+                            if len(move_history) >= 1:
+                                recent_slice = list(move_history)[-1:]
+                                recent_moves = [move for move, conf in recent_slice]
+                                move_counts = {}
+                                for move in recent_moves:
+                                    move_counts[move] = move_counts.get(move, 0) + 1
+                                
+                                stable_move = max(move_counts, key=move_counts.get)
+                                avg_confidence = np.mean([conf for move, conf in recent_slice
+                                                          if move == stable_move])
+                except Exception as e:
+                    print(f"⚠️  模型預測錯誤: {e}，改用啟發式規則")
+                    use_ml_model = False  # 發生錯誤時切換回啟發式規則
+            
+            # 使用啟發式規則（如果模型不可用或發生錯誤）
+            if not use_ml_model and len(fire_trajectory) > 5:
                 current_move, confidence = analyze_move_advanced(
                     list(fire_trajectory), pose_results.pose_landmarks
                 )
@@ -586,16 +763,41 @@ def process_video_enhanced(input_path, output_path, analysis_mode='balanced'):
                     stable_move = max(move_counts, key=move_counts.get)
                     avg_confidence = np.mean([conf for move, conf in recent_slice
                                               if move == stable_move])
+                    # 啟發式規則返回的是中文名稱，需要轉換為英文代碼
+                    stable_move_code_for_save = None
+                    for code, name in MOVES_DICT.items():
+                        if name == stable_move:
+                            stable_move_code_for_save = code
+                            break
+                    if stable_move_code_for_save is None:
+                        stable_move_code_for_save = stable_move
 
-                    if stable_detection:
-                        tool_type = stable_detection['type']
+            if stable_detection:
+                tool_type = stable_detection['type']
 
             num_fire = 1 if stable_detection else 0
             if not (stable_move == '準備中' and num_fire == 0):
+                # 確定要保存的招式代碼
+                if use_ml_model and stable_move_code_for_save is not None:
+                    # 使用模型預測的英文代碼
+                    move_code = stable_move_code_for_save
+                    move_zh = stable_move
+                else:
+                    # 使用啟發式規則的結果，需要轉換
+                    move_code = None
+                    for code, name in MOVES_DICT.items():
+                        if name == stable_move:
+                            move_code = code
+                            break
+                    if move_code is None:
+                        move_code = stable_move
+                    move_zh = stable_move
+                
                 move_timeline.append({
                     'time': current_time,
-                    'move': stable_move,
-                    'move_en': MOVE_NAMES_EN.get(stable_move, stable_move),
+                    'move': move_code,  # 保存英文代碼（與訓練數據一致）
+                    'move_zh': move_zh,  # 保存中文名稱
+                    'move_en': MOVE_NAMES_EN.get(move_code, move_zh),
                     'confidence': avg_confidence,
                     'fire_detections': num_fire,
                     'tool_type': tool_type
@@ -739,15 +941,23 @@ def processed_file(filename):
 if __name__ == '__main__':
     print("Fire Dance Analysis System Starting...")
     print("Supported Moves:")
-    for eng_name, en_name in MOVE_NAMES_EN.items():
-        if eng_name not in ['準備中', '未知動作']:
-            print(f"  - {en_name}")
-
+    # 顯示所有招式（排除特殊招式）
+    for move_key, move_zh in MOVES_DICT.items():
+        if move_key not in ['other', 'preparing']:
+            print(f"  - {move_zh} ({move_key})")
+    
+    print(f"\n總共支援 {len([k for k in MOVES_DICT.keys() if k not in ['other', 'preparing']])} 種招式")
     print(f"\nUpload Folder: {UPLOAD_FOLDER}")
     print(f"Output Folder: {PROCESSED_FOLDER}")
 
     if FireDanceAnalyzer is not None:
         print("✅ FireDanceAnalyzer loaded")
+        # 嘗試載入訓練好的模型
+        analyzer = FireDanceAnalyzer()
+        if analyzer.load_model('fire_dance_model.pkl'):
+            print("✅ 訓練好的模型已載入")
+        else:
+            print("⚠️  未找到訓練好的模型，將使用啟發式規則")
     else:
         print("⚠️  Using built-in analyzer")
 
