@@ -150,17 +150,20 @@ class FireDanceModelTrainer:
         
         print("\n詳細分類報告:")
         print("-" * 50)
-        print(classification_report(y_test, y_pred, target_names=[
-            self.analyzer.get_move_description(move) for move in self.analyzer.moves.keys()
-        ]))
+        labels = sorted(list(set(y_test)))
+        target_names = [
+            self.analyzer.get_move_description(label) if label in self.analyzer.moves else label
+            for label in labels
+        ]
+        print(classification_report(y_test, y_pred, labels=labels, target_names=target_names))
         
         # 混淆矩陣
-        cm = confusion_matrix(y_test, y_pred)
+        cm = confusion_matrix(y_test, y_pred, labels=labels)
         
         plt.figure(figsize=(10, 8))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-                   xticklabels=[self.analyzer.get_move_description(move) for move in self.analyzer.moves.keys()],
-                   yticklabels=[self.analyzer.get_move_description(move) for move in self.analyzer.moves.keys()])
+                   xticklabels=target_names,
+                   yticklabels=target_names)
         plt.title('混淆矩陣')
         plt.xlabel('預測標籤')
         plt.ylabel('真實標籤')
@@ -171,6 +174,7 @@ class FireDanceModelTrainer:
         plt.show()
         
         return y_pred
+
     
     def save_model(self, model_name="fire_dance_model.pkl"):
         """保存模型"""
@@ -252,7 +256,7 @@ class FireDanceModelTrainer:
         # 生成報告
         self.generate_training_report(results, best_model_name)
         
-        print("\n🎉 訓練完成！")
+        print("\n訓練完成！")
         print(f"最佳模型已保存，測試準確率: {self.best_score:.3f}")
 
 def main():
