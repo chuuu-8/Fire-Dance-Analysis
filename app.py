@@ -43,7 +43,9 @@ ALLOWED_MOVES_DEFAULT = {
     'side_4petal': '側四葉',
     'cap': 'cap',
     'stall': '停球',
-    'isolation': 'isolation'
+    'isolation': 'isolation',
+    'other': '其他',
+    'preparing': '準備中'
 }
 
 
@@ -84,22 +86,58 @@ def get_video_duration(video_path):
 
 
 def download_youtube_video(youtube_url, quality):
+    """下載 YouTube 影片 (更新版：自動重試與容錯)"""
     try:
         safe_filename = f"youtube_{uuid.uuid4().hex[:8]}"
-        safe_filename = re.sub(r'[^A-Za-z0-9_]', '_', safe_filename)
-        format_selector = "bestvideo+bestaudio/best"
+        # 設定絕對路徑
+        output_path = os.path.join(os.path.abspath(UPLOAD_FOLDER), f'{safe_filename}.%(ext)s')
 
-        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        print(f"[INFO] 開始下載 YouTube 影片: {youtube_url}")
+
+        # 策略 1: 嘗試標準最佳單檔 (best)
+        # 這裡加上 ignoreerrors 和 nocheckcertificate 以應對各種網路/憑證問題
         ydl_opts = {
-            'format': format_selector,
-            'outtmpl': os.path.join(os.path.abspath(UPLOAD_FOLDER), f'{safe_filename}.%(ext)s'),
+            'format': 'best',
+            'outtmpl': output_path,
             'quiet': True,
-            'merge_output_format': 'mp4',
+            'noplaylist': True,
+            'ignoreerrors': True,
+            'no_check_certificate': True,
         }
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(youtube_url, download=True)
-            return ydl.prepare_filename(info)
+            # 如果下載失敗，info 可能是 None
+            if not info:
+                raise Exception("無法獲取影片資訊 (請確認 yt-dlp 已更新)")
+
+            filename = ydl.prepare_filename(info)
+
+            if os.path.exists(filename) and os.path.getsize(filename) > 0:
+                print(f"[INFO] 影片下載成功: {filename}")
+                return filename
+
+            # 搜尋可能的副檔名
+            base = os.path.splitext(filename)[0]
+            for ext in ['.mp4', '.webm', '.mkv', '.3gp']:
+                if os.path.exists(base + ext) and os.path.getsize(base + ext) > 0:
+                    return base + ext
+
+            # 如果 best 失敗，嘗試 worst (保底策略)
+            print("[WARNING] 最佳畫質下載失敗，嘗試保底模式...")
+            ydl_opts['format'] = 'worst'
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl_retry:
+                info = ydl_retry.extract_info(youtube_url, download=True)
+                filename = ydl_retry.prepare_filename(info)
+                if os.path.exists(filename): return filename
+
+            raise Exception("所有下載嘗試均失敗")
+
     except Exception as e:
+        print(f"[ERROR] YouTube 下載錯誤: {e}")
+        # 這裡會提示用戶去更新
+        if "Signature extraction failed" in str(e) or "Requested format is not available" in str(e):
+            raise Exception("下載工具過期，請執行: pip install --upgrade yt-dlp")
         raise Exception(f"YouTube 下載失敗: {str(e)}")
 
 
@@ -118,10 +156,11 @@ def trim_video(input_path, output_path, start, end):
 
         codecs = ['avc1', 'h264', 'mp4v', 'XVID']
         out = None
-        for c in codecs:
+
+        for codec in codecs:
             try:
-                fourcc = cv2.VideoWriter_fourcc(*c)
-                temp_out = output_path.replace('.mp4', '.avi') if c == 'XVID' else output_path
+                fourcc = cv2.VideoWriter_fourcc(*codec)
+                temp_out = output_path.replace('.mp4', '.avi') if codec == 'XVID' else output_path
                 out = cv2.VideoWriter(temp_out, fourcc, fps, (width, height))
                 if out.isOpened():
                     output_path = temp_out
@@ -148,16 +187,12 @@ def trim_video(input_path, output_path, start, end):
 
 def enhanced_detect_fire_in_frame(frame, pose_landmarks=None):
     results = []
-
-    # 寬鬆過濾：如果沒人，就不回傳，但不要太嚴格檢查距離
-    if pose_landmarks is None:
-        return [], None, []
+    if pose_landmarks is None: return [], None, None
 
     h, w = frame.shape[:2]
     lm = pose_landmarks.landmark
-
     shoulder_width = abs(lm[11].x - lm[12].x) * w
-    search_radius = max(int(shoulder_width * 5.0), 100)  # 範圍加大到 5 倍，避免甩太快抓不到
+    search_radius = max(int(shoulder_width * 6.0), 150)
 
     left_wrist = (int(lm[15].x * w), int(lm[15].y * h))
     right_wrist = (int(lm[16].x * w), int(lm[16].y * h))
@@ -182,18 +217,15 @@ def enhanced_detect_fire_in_frame(frame, pose_landmarks=None):
 
     for contour in contours:
         area = cv2.contourArea(contour)
-        if 20 < area < 10000:
+        if 20 < area < 20000:
             M = cv2.moments(contour)
             if M["m00"] != 0:
                 cx, cy = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
-
                 point_vec = np.array([cx, cy])
                 min_dist = min([np.linalg.norm(point_vec - np.array(wrist)) for wrist in valid_zones])
-
                 if min_dist <= search_radius:
                     results.append({'position': (cx, cy), 'confidence': 1.0})
                     if len(results) >= 2: break
-
     return results, search_radius, valid_zones
 
 
@@ -223,24 +255,24 @@ def merge_move_timeline(move_timeline, min_duration=0.0):
 def process_video_enhanced(input_path, output_path, analysis_mode='balanced'):
     print(f"[INFO] 分析影片: {input_path}")
 
-    # === 修改：大幅放寬判定門檻 ===
-    # 讓模型更容易說話
-    CONF_THRESH = 0.15  # 只要有 15% 信心就列入考慮
-    HIST_LEN = 6  # 只看過去 6 幀 (約 0.6 秒)，反應更快
-    CONSISTENCY = 0.3  # 只要 30% 一致就顯示 (不求穩，求有顯示)
-    MIN_SIZE = 0.05  # 允許更小的人
+    # === 直球對決模式設定 ===
+    CONF_THRESH = 0.15  # 門檻
 
     analyzer = None
     if FireDanceAnalyzer:
         analyzer = FireDanceAnalyzer()
         analyzer.reset_history()
-        analyzer.load_model('fire_dance_model.pkl')
+        if os.path.exists('fire_dance_model.pkl'):
+            analyzer.load_model('fire_dance_model.pkl')
+            print("[INFO] 模型載入成功")
+        else:
+            print("[WARNING] 找不到 fire_dance_model.pkl")
 
     cap = cv2.VideoCapture(input_path)
     fps = cap.get(cv2.CAP_PROP_FPS) or 30
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    # 補回 total_frames 定義
+    # 確保 total_frames 存在 (修復之前的 Bug)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     scale_factor = 720 / width if width > 720 else 1.0
@@ -261,14 +293,11 @@ def process_video_enhanced(input_path, output_path, analysis_mode='balanced'):
 
     mp_pose = mp.solutions.pose
     mp_drawing = mp.solutions.drawing_utils
-    # 回歸預設值，比較容易抓到人
-    pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+    pose = mp_pose.Pose(min_detection_confidence=0.3, min_tracking_confidence=0.3)
 
     frame_count = 0
     analyzed_frames = 0
     move_timeline = []
-    move_history = deque(maxlen=HIST_LEN)
-    missing_pose_frames = 0
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -279,32 +308,27 @@ def process_video_enhanced(input_path, output_path, analysis_mode='balanced'):
         frame_resized = cv2.resize(frame, (new_w, new_h)) if scale_factor != 1.0 else frame
         rgb_frame = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
         pose_results = pose.process(rgb_frame)
-
         landmarks = pose_results.pose_landmarks
 
         detections, radius, valid_zones = enhanced_detect_fire_in_frame(frame_resized, landmarks)
 
         if landmarks:
-            missing_pose_frames = 0
             mp_drawing.draw_landmarks(
                 frame_resized, landmarks, mp_pose.POSE_CONNECTIONS,
                 mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=2),
                 mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=2)
             )
         else:
-            missing_pose_frames += 1
-            if missing_pose_frames > 30:
-                cv2.putText(frame_resized, "No Pose", (20, new_h - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            cv2.putText(frame_resized, "No Pose", (20, new_h - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
         for d in detections:
             cv2.circle(frame_resized, d['position'], 5, (0, 165, 255), -1)
 
+        # 動作識別
         if frame_count % 3 == 0:
             analyzed_frames += 1
-            detected_move = None
-            conf = 0.0
 
-            if landmarks and analyzer:
+            if landmarks and analyzer and analyzer.is_trained:
                 try:
                     features = analyzer.extract_pose_features(landmarks)
                     if features is not None:
@@ -314,29 +338,24 @@ def process_video_enhanced(input_path, output_path, analysis_mode='balanced'):
                         code = analyzer.classifier.classes_[idx]
                         conf = probs[idx]
 
-                        print(f"Pred: {code} Conf: {conf:.2f}")
+                        move_name = analyzer.get_move_description(code)
+                        if code == 'other': move_name = "其他"
 
-                        if code in ALLOWED_MOVES_DEFAULT and conf > CONF_THRESH:
-                            move_history.append(analyzer.get_move_description(code))
+                        # 只要有信心度就顯示
+                        if conf > CONF_THRESH:
+                            move_timeline.append({
+                                'time': round(current_time, 2),
+                                'move': code,
+                                'move_zh': move_name,
+                                'confidence': round(float(conf), 2)
+                            })
 
-                            if len(move_history) >= 2:
-                                most_common = max(set(move_history), key=move_history.count)
-                                if move_history.count(most_common) >= len(move_history) * CONSISTENCY:
-                                    detected_move = most_common
-                                    for k, v in MOVES_DICT.items():
-                                        if v == detected_move:
-                                            detected_move_code = k
-                                            break
+                            debug_text = f"{move_name} {int(conf * 100)}%"
+                            color = (0, 255, 0) if code != 'other' else (0, 0, 255)
+                            cv2.putText(frame_resized, debug_text, (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
+
                 except Exception as e:
                     print(e)
-
-            if detected_move:
-                move_timeline.append({
-                    'time': round(current_time, 2),
-                    'move': detected_move_code,
-                    'move_zh': detected_move,
-                    'confidence': round(float(conf), 2)
-                })
 
         out.write(frame_resized)
 
@@ -350,14 +369,13 @@ def process_video_enhanced(input_path, output_path, analysis_mode='balanced'):
 def index(): return render_template('index.html')
 
 
-# === 修正：變數名稱錯誤修正 ===
 @app.route('/api/video_duration', methods=['POST'])
 def check_video_duration():
     try:
         url = request.form.get('youtube_url')
         if url:
             with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
-                info = ydl.extract_info(url, download=False)  # 修正為 url
+                info = ydl.extract_info(url, download=False)
                 return jsonify({'duration': info.get('duration', 100)})
     except:
         pass
