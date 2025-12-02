@@ -1,217 +1,276 @@
-/* ========== 基本設定 ========== */
+/* ========== 全域設定 ========== */
 body {
-    background-color: #f0f0f0; /* 設定網頁背景為淺灰色 */
-    font-family: Arial, sans-serif; /* 全站字體設定為 Arial，若無則用 sans-serif */
-    text-align: center; /* 預設文字置中 */
-    padding: 16px; /* 頁面內容與邊界的內距 */
-    margin: 0; /* 移除瀏覽器預設外距 */
+    background-color: #121212; /* 深色背景 */
+    color: #ffffff;
+    font-family: 'Microsoft JhengHei', sans-serif;
+    margin: 0;
+    padding: 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+h1, h2, h3 {
+    margin-bottom: 15px;
+    font-weight: bold;
 }
 
 h1 {
-    color: #cc5500; /* 標題字體顏色（橘棕色） */
-    font-size: 36px; /* 標題字體大小 */
-    margin-bottom: 16px; /* 標題下方留空間 */
+    font-size: 2.5rem;
+    background: linear-gradient(135deg, #ff4b1f 0%, #ff9068 100%); /* 火焰漸層文字 */
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 30px;
+    text-shadow: 0 4px 10px rgba(255, 75, 31, 0.3);
 }
 
-form {
-    background-color: white; /* 表單背景設為白色 */
-    padding: 20px; /* 表單內距 */
-    border-radius: 12px; /* 表單四角圓弧 */
-    box-shadow: 0 0 10px rgba(0,0,0,0.1); /* 加上陰影 */
-    display: inline-block; /* 讓表單自動縮放並置中 */
-    max-width: 640px; /* 表單最大寬度 */
-    width: 100%; /* 表單寬度預設佔滿容器 */
-    box-sizing: border-box; /* 包含內距和邊框在寬度計算中 */
+/* ========== 卡片容器 ========== */
+form, .result-container {
+    background-color: #1e1e1e;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    width: 100%;
+    max-width: 700px;
+    border: 1px solid #333;
+    box-sizing: border-box;
 }
 
-/* ========== 標籤 & 輸入欄位 ========== */
+.result-container {
+    max-width: 1000px;
+}
+
+/* ========== 輸入元件 ========== */
 label {
-    display: block; /* 每個 label 獨立一行 */
-    font-size: 16px; /* 字體大小 */
-    color: #333; /* 深灰文字 */
-    margin: 12px 8px; /* 上 12px，下 8px 的間距 */
-    text-align: left; /* 文字靠左 */
+    display: block;
+    margin-top: 25px;
+    margin-bottom: 10px;
+    color: #b0b0b0;
+    font-size: 0.95rem;
 }
 
 input[type="text"],
-input[type="url"],
 input[type="file"],
 select {
-    display: block; /* 每個輸入框獨立一行 */
-    margin: 0 auto; /* 置中 */
-    width: 100%; /* 預設寬度 100% */
-    max-width: 500px; /* 最大寬度 500px */
-    padding: 12px; /* 內距 */
-    border-radius: 8px; /* 圓角邊框 */
-    border: 2px solid #ccc; /* 邊框顏色與粗細 */
-    font-size: 16px; /* 字體大小 */
-    box-sizing: border-box; /* 包含內距與邊框 */
-    background-color: white; /* 背景白色 */
-    color: #333; /* 文字顏色 */
+    width: 100%;
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid #444;
+    background-color: #2d2d2d;
+    color: white;
+    font-size: 1rem;
+    box-sizing: border-box;
+    transition: border-color 0.3s;
 }
 
-input::placeholder {
-    color: #aaa; /* placeholder 顏色 */
-    font-style: italic; /* placeholder 斜體 */
-    font-size: 14px; /* placeholder 字體大小 */
+input[type="text"]:focus,
+select:focus {
+    border-color: #ff512f;
+    outline: none;
 }
 
-input[type="file"]::-webkit-file-upload-button {
-    background-color: #f0f0f0; /* 上傳按鈕背景色 */
-    padding: 10px; /* 內距 */
-    border: 2px solid #ccc; /* 邊框 */
-    border-radius: 8px; /* 圓角 */
-    cursor: pointer; /* 滑鼠移上去顯示手指圖示 */
+input[type="file"] {
+    background: #2a2a2a;
+    border: 2px dashed #444;
 }
 
-.divider {
-    margin: 20px 0; /* 上下間距 */
-    color: #888; /* 灰色文字 */
-    font-size: 14px; /* 小字 */
+/* ========== 按鈕 ========== */
+button, .back-button {
+    width: 100%;
+    padding: 16px;
+    margin-top: 35px;
+    border: none;
+    border-radius: 30px;
+    background: linear-gradient(135deg, #ff4b1f 0%, #ff9068 100%);
+    color: white;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.3s;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+    box-sizing: border-box;
 }
 
-button[type="submit"] {
-    padding: 10px 24px; /* 內距（上下 10px，左右 24px） */
-    background-color: #cc5500; /* 按鈕背景橘棕色 */
-    color: white; /* 按鈕文字顏色 */
-    border: none; /* 移除預設邊框 */
-    border-radius: 10px; /* 圓角 */
-    font-size: 18px; /* 字體大小 */
-    cursor: pointer; /* 滑鼠移上去顯示手指圖示 */
-    margin-top: 12px; /* 與上方元素間距 */
+button:hover, .back-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 75, 31, 0.4);
 }
 
-button[type="submit"]:hover {
-    background-color: #ff7733; /* 滑鼠移上去變亮橘 */
+.back-button {
+    background: #333;
+    box-shadow: none;
+    width: auto;
+    padding: 12px 40px;
+    margin-top: 30px;
 }
 
-/* ========== 響應式 ========== */
-@media (max-width: 600px) {
-    form {
-        padding: 20px; /* 縮小裝置仍保留 20px 內距 */
-    }
-
-    input[type="text"],
-    input[type="url"],
-    input[type="file"],
-    select {
-        font-size: 16px; /* 保持字體大小 */
-        padding: 10px; /* 輸入框內距縮小 */
-        max-width: 100%; /* 在小螢幕下填滿 */
-    }
-
-    button[type="submit"] {
-        width: 100%; /* 按鈕在小螢幕下填滿 */
-        font-size: 16px; /* 字體大小稍小 */
-    }
+.back-button:hover {
+    background: #444;
 }
 
-/* ========== 載入動畫 ========== */
-#loading-screen {
-    display: none; /* 預設隱藏 */
-    position: fixed; /* 固定在螢幕最上層 */
-    top: 0; left: 0; /* 貼齊左上角 */
-    width: 100%; height: 100%; /* 佔滿整個視窗 */
-    background: rgba(255,255,255,0.8); /* 半透明白色背景 */
-    z-index: 9999; /* 顯示在最上層 */
-    display: flex; /* 使用 flex 置中內容 */
-    justify-content: center; /* 水平置中 */
-    align-items: center; /* 垂直置中 */
-    flex-direction: column; /* 子元素直向排列 */
-}
-
-.loader {
-    border: 8px solid #f3f3f3; /* 外圍灰色圓圈 */
-    border-top: 8px solid #cc5500; /* 上方橘棕色，用於旋轉效果 */
-    border-radius: 50%; /* 圓形 */
-    width: 60px; /* 寬度 */
-    height: 60px; /* 高度 */
-    animation: spin 1s linear infinite; /* 旋轉動畫 */
-    margin-bottom: 20px; /* 與文字間距 */
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); } /* 起始角度 */
-    100% { transform: rotate(360deg); } /* 結束角度：旋轉一圈 */
-}
-
-/* ========== 影片預覽 ========== */
-.video-preview-container {
-    margin-top: 20px; /* 與上方元素間距 */
-    text-align: center; /* 置中影片 */
-}
-
-#videoPreview {
-    width: 100%; /* 填滿容器寬度 */
-    max-width: 640px; /* 最大寬度限制 */
-    height: auto; /* 自動高度（保持比例） */
-    background-color: #000; /* 背景設黑色 */
-    border-radius: 12px; /* 圓角 */
-    margin-bottom: 10px; /* 與下方元素間距 */
-}
-
-/* ========== IG Story 風格滑桿 ========== */
+/* ========== 滑桿區域 ========== */
 #rangeContainer {
-    display: flex; /* 彈性排版 */
-    justify-content: center; /* 水平置中 */
-    align-items: center; /* 垂直置中 */
-    gap: 10px; /* 元素間距 */
-    margin-top: 10px; /* 與上方元素間距 */
-    flex-wrap: wrap; /* 小螢幕自動換行 */
-    max-width: 640px; /* 最大寬度 */
-    margin-left: auto; /* 水平置中 */
-    margin-right: auto; /* 水平置中 */
+    background-color: #252525;
+    padding: 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border: 1px solid #333;
 }
 
 .time-label {
-    width: 50px; /* 固定寬度 */
-    text-align: center; /* 文字置中 */
-    font-weight: bold; /* 加粗 */
-    color: #333; /* 深灰色 */
+    color: #ff512f;
+    font-family: monospace;
+    font-weight: bold;
+    min-width: 60px;
+    text-align: center;
 }
 
 input[type="range"] {
-    -webkit-appearance: none; /* 移除瀏覽器預設樣式 */
-    height: 6px; /* 滑桿高度 */
-    background: #ddd; /* 滑桿底色 */
-    border-radius: 5px; /* 圓角 */
-    outline: none; /* 移除點選外框 */
-    position: relative; /* 為 highlight 提供定位 */
-    z-index: 1; /* 讓滑桿在 highlight 上方 */
-    flex: 1; /* 自動撐開寬度 */
-    margin: 0 5px; /* 左右間距 */
+    -webkit-appearance: none;
+    background: transparent;
+    flex-grow: 1;
 }
 
-/* 滑塊樣式 (Chrome / Safari) */
+input[type="range"]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 6px;
+    background: #444;
+    border-radius: 3px;
+}
+
 input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none; /* 移除預設樣式 */
-    width: 18px; /* 滑塊大小 */
-    height: 18px; /* 滑塊大小 */
-    background: #cc5500; /* 橘棕色 */
-    border-radius: 50%; /* 圓形 */
-    cursor: pointer; /* 滑鼠移上去顯示手指 */
-    border: 2px solid #fff; /* 白色外框 */
-    box-shadow: 0 0 3px rgba(0,0,0,0.3); /* 陰影 */
-}
-
-/* 滑塊樣式 (Firefox) */
-input[type="range"]::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
-    background: #cc5500;
+    -webkit-appearance: none;
+    height: 20px;
+    width: 20px;
     border-radius: 50%;
+    background: #ff512f;
+    margin-top: -7px;
     cursor: pointer;
-    border: 2px solid #fff;
-    box-shadow: 0 0 3px rgba(0,0,0,0.3);
 }
 
-/* 高亮已選片段（透過 JS 動態調整位置和寬度） */
-.range-highlight {
-    position: absolute; /* 相對於 rangeContainer 定位 */
-    height: 6px; /* 高度與滑桿一致 */
-    background: rgba(204,85,0,0.4); /* 半透明橘棕色 */
-    border-radius: 5px; /* 圓角 */
-    top: 0; /* 對齊上方 */
-    left: 0; /* 從左邊開始 */
-    pointer-events: none; /* 不阻擋滑鼠事件 */
+/* ========== 結果頁面樣式 ========== */
+.video-section {
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 30px;
 }
+
+video {
+    width: 100%;
+    display: block;
+}
+
+.move-display {
+    background: #2a2a2a;
+    padding: 15px;
+    text-align: center;
+    border-top: 1px solid #333;
+}
+
+/* 統計卡片 */
+.stats-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: #252525;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    border: 1px solid #333;
+}
+
+.stat-card h3 {
+    font-size: 0.9rem;
+    color: #888;
+    margin: 0 0 10px 0;
+}
+
+.stat-card p {
+    font-size: 1.5rem;
+    color: #fff;
+    margin: 0;
+    font-weight: bold;
+}
+
+/* 時間軸列表 */
+.segments-container {
+    background: #252525;
+    border-radius: 12px;
+    overflow: hidden;
+    max-height: 500px;
+    overflow-y: auto;
+    border: 1px solid #333;
+}
+
+.segment-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #333;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.segment-row:hover {
+    background-color: #333;
+}
+
+.segment-time {
+    color: #ff512f;
+    font-family: monospace;
+    font-weight: bold;
+    margin-right: 15px;
+}
+
+.segment-move {
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+.segment-confidence {
+    font-size: 0.85rem;
+    padding: 4px 10px;
+    border-radius: 20px;
+    color: #121212;
+    font-weight: bold;
+}
+
+.conf-high { background: #4ade80; }
+.conf-medium { background: #facc15; }
+.conf-low { background: #f87171; }
+
+/* 載入畫面 */
+#loading {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 2000;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(255, 255, 255, 0.1);
+    border-top: 4px solid #ff512f;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
