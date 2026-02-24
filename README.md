@@ -1,3 +1,4 @@
+```
 FireDanceAnalysis/
 ├── .idea/                 # PyCharm 編輯器設定檔目錄 (自動生成，不影響程式)
 ├── .venv/                 # Python 虛擬環境 (包含安裝好的套件，如 OpenCV, Flask 等)
@@ -29,3 +30,4 @@ FireDanceAnalysis/
 ├── quick_label.py         # [舊版] 數據標註工具 (已被自動提取取代)
 ├── train_model.py         # 模型訓練器 (會去讀 training_videos 並生出新模型)
 └── training_report.txt    # 訓練結果文字報告
+```
