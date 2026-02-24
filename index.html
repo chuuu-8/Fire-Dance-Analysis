@@ -1,44 +1,80 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
-    <title>火舞分析系統</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>火舞動態分析系統</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 <body>
-    <h1>火舞分析系統</h1>
 
     <div id="loading">
         <div class="spinner"></div>
-        <p style="font-size: 1.2rem; font-weight: bold;">正在解析動作...</p>
-        <p style="color: #888; margin-top: 10px;">請稍候，影片越長處理時間越久</p>
+        <h2 class="loading-title">系統正在進行運算...</h2>
+        <p class="loading-text">這可能需要幾分鐘，請勿關閉視窗</p>
     </div>
 
-    <form action="/analyze" method="post" enctype="multipart/form-data" onsubmit="document.getElementById('loading').style.display='flex'">
+    <div style="width: 100%; max-width: 800px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 0 10px; box-sizing: border-box;">
+        <div>
+            {% if user.is_authenticated %}
+                <span style="color: #fff; font-size: 1.1rem;"><strong style="color: #ff9068;">{{ user.username }}</strong></span>
+            {% else %}
+                <span style="color: #888; font-size: 0.9rem;">訪客模式</span>
+            {% endif %}
+        </div>
+        <div style="display: flex; gap: 10px;">
+            {% if user.is_authenticated %}
+                <a href="{{ url_for('history') }}" class="back-button" style="padding: 8px 15px; background: #2d2d2d; margin-top: 0; width: auto; font-size: 0.9rem;">歷史紀錄</a>
+                <a href="{{ url_for('logout') }}" class="back-button" style="padding: 8px 15px; margin-top: 0; width: auto; font-size: 0.9rem;">登出</a>
+            {% else %}
+                <a href="{{ url_for('login') }}" class="back-button" style="padding: 8px 15px; background: #ff4b1f; border-color: #ff4b1f; margin-top: 0; width: auto; font-size: 0.9rem;">登入 / 註冊</a>
+            {% endif %}
+        </div>
+    </div>
 
-        <label>YouTube 連結</label>
-        <input type="text" id="youtube_url" name="youtube_url" placeholder="貼上網址..." onchange="checkDuration()">
+    <h1>火舞動態分析系統 <span class="version-tag"></span></h1>
 
-        <div style="text-align: center; margin: 20px 0; color: #555; font-size: 0.9rem;">或</div>
+    <form action="/analyze" method="post" enctype="multipart/form-data" onsubmit="showLoading()">
 
-        <label>上傳影片檔案</label>
-        <input type="file" name="file" accept="video/*">
+        {% if error %}
+        <div class="error-box">
+            <span class="material-icons" style="margin-right: 10px;">error_outline</span>
+            <span>{{ error }}</span>
+        </div>
+        {% endif %}
 
-        <label>畫質設定</label>
-        <select name="quality">
-            <option value="best">自動最佳畫質</option>
-            <option value="720p">720p (推薦)</option>
-            <option value="480p">480p (快速)</option>
-        </select>
+        <label><span class="material-icons icon-align">link</span> YouTube 影片連結</label>
+        <input type="text" id="youtube_url" name="youtube_url" placeholder="貼上網址，例如: https://youtu.be/..." onchange="checkDuration()">
 
-        <label>分析模式</label>
-        <select name="analysis_mode">
-            <option value="balanced">平衡模式 (推薦)</option>
-            <option value="fast">快速模式</option>
-            <option value="accurate">精確模式</option>
-        </select>
+        <div class="divider-container">
+            <span class="divider-text">OR</span>
+            <div class="divider-line"></div>
+        </div>
 
-        <label>裁剪片段 (秒)</label>
+        <label><span class="material-icons icon-align">upload_file</span> 本地影片上傳</label>
+        <input type="file" id="fileInput" name="file" accept="video/*" onchange="clearUrl()">
+
+        <div class="options-grid">
+            <div>
+                <label>分析畫質</label>
+                <select name="quality">
+                    <option value="best" selected>自動 (最佳)</option>
+                    <option value="720p">720p</option>
+                    <option value="480p">480p</option>
+                    <option value="360p">360p</option>
+                </select>
+            </div>
+            <div>
+                <label>運算模式</label>
+                <select name="analysis_mode">
+                    <option value="balanced" selected>平衡模式</option>
+                    <option value="accurate">精確模式</option>
+                    <option value="fast">快速模式</option>
+                </select>
+            </div>
+        </div>
+        <label><span class="material-icons icon-align">content_cut</span> 裁剪片段 (秒)</label>
         <div id="rangeContainer">
             <span class="time-label" id="startLabel">0s</span>
             <input type="range" id="startRange" name="start" min="0" max="100" value="0">
@@ -46,55 +82,70 @@
             <span class="time-label" id="endLabel">自動</span>
         </div>
 
-        <button type="submit">開始分析</button>
+        <button type="submit">
+            <span class="material-icons btn-icon">analytics</span> 開始分析
+        </button>
     </form>
 
     <script>
+        // === Loading 控制 ===
+        function showLoading() {
+            const url = document.getElementById('youtube_url').value;
+            const file = document.getElementById('fileInput').files.length;
+            if (url.trim() || file > 0) {
+                document.getElementById('loading').style.display = 'flex';
+            }
+        }
+        function clearFile() { document.getElementById('fileInput').value = ''; }
+        function clearUrl() { document.getElementById('youtube_url').value = ''; }
+
+        // === Slider 邏輯 ===
         const startRange = document.getElementById('startRange');
         const endRange = document.getElementById('endRange');
         const startLabel = document.getElementById('startLabel');
         const endLabel = document.getElementById('endLabel');
         const youtubeInput = document.getElementById('youtube_url');
 
-        let maxDuration = 100;
-
         function updateSliderMax(duration) {
-            maxDuration = duration;
-            startRange.max = duration;
-            endRange.max = duration;
+            startRange.max = duration; endRange.max = duration;
             if (endRange.value == 0 || endRange.value == 100) {
-                endRange.value = duration;
-                endLabel.textContent = duration + "s";
+                endRange.value = duration; endLabel.textContent = duration + "s";
             }
         }
 
         async function checkDuration() {
-            const url = youtubeInput.value;
-            if (!url) return;
+            clearFile(); const url = youtubeInput.value; if (!url) return;
             endLabel.textContent = "...";
             try {
-                const formData = new FormData();
-                formData.append('youtube_url', url);
+                const formData = new FormData(); formData.append('youtube_url', url);
                 const response = await fetch('/api/video_duration', { method: 'POST', body: formData });
                 const data = await response.json();
                 if (data.duration) updateSliderMax(data.duration);
-            } catch (e) {
-                endLabel.textContent = "自動";
-            }
+            } catch (e) { endLabel.textContent = "自動"; }
         }
 
-        startRange.addEventListener('input', () => {
-            let startSec = parseInt(startRange.value);
-            let endSec = parseInt(endRange.value);
-            if (startSec > endSec) { startRange.value = endSec; startSec = endSec; }
-            startLabel.textContent = startSec + "s";
+        // ★★★ 新增：本地檔案上傳時，自動讀取影片長度 ★★★
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            clearUrl(); // 清除 YouTube 欄位
+            const file = e.target.files[0];
+            if (file) {
+                const video = document.createElement('video');
+                video.preload = 'metadata';
+                video.onloadedmetadata = function() {
+                    window.URL.revokeObjectURL(video.src);
+                    updateSliderMax(parseInt(video.duration)); // 更新拉條
+                }
+                video.src = URL.createObjectURL(file);
+            }
         });
 
+        startRange.addEventListener('input', () => {
+            if (parseInt(startRange.value) > parseInt(endRange.value)) startRange.value = endRange.value;
+            startLabel.textContent = startRange.value + "s";
+        });
         endRange.addEventListener('input', () => {
-            let startSec = parseInt(startRange.value);
-            let endSec = parseInt(endRange.value);
-            if (endSec < startSec) { endRange.value = startSec; endSec = startSec; }
-            endLabel.textContent = endSec + "s";
+            if (parseInt(endRange.value) < parseInt(startRange.value)) endRange.value = startRange.value;
+            endLabel.textContent = endRange.value + "s";
         });
     </script>
 </body>
