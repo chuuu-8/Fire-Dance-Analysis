@@ -1,276 +1,282 @@
-/* ========== 全域設定 ========== */
+/* ========== static/style.css (最終完美整合版) ========== */
+
+:root {
+    --primary-gradient: linear-gradient(135deg, #ff4b1f 0%, #ff9068 100%);
+    --glow-shadow: 0 0 15px rgba(255, 75, 31, 0.4);
+    --bg-dark: #0f0f0f;
+    --card-bg: rgba(30, 30, 30, 0.8);
+    --panel-bg: #1e1e1e;
+    --border-color: rgba(255, 255, 255, 0.1);
+    --text-main: #e0e0e0;
+}
+
 body {
-    background-color: #121212; /* 深色背景 */
-    color: #ffffff;
-    font-family: 'Microsoft JhengHei', sans-serif;
+    background-color: var(--bg-dark);
+    background-image: radial-gradient(circle at top right, rgba(255, 75, 31, 0.05), transparent 400px);
+    color: var(--text-main);
+    font-family: 'Inter', 'Microsoft JhengHei', sans-serif;
     margin: 0;
-    padding: 20px;
     min-height: 100vh;
+
+    /* === 核心設定：佈局與位置 === */
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: flex-start; /* 靠上對齊 (解決畫面太低問題) */
+    padding-top: 8vh;            /* 頂部留空 8% (視覺黃金位置) */
+    box-sizing: border-box;
+    line-height: 1.6;
 }
 
-h1, h2, h3 {
-    margin-bottom: 15px;
-    font-weight: bold;
-}
+h1, h2, h3 { margin-top: 0; font-weight: bold; }
 
+/* 標題 */
 h1 {
     font-size: 2.5rem;
-    background: linear-gradient(135deg, #ff4b1f 0%, #ff9068 100%); /* 火焰漸層文字 */
+    background: var(--primary-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     margin-bottom: 30px;
-    text-shadow: 0 4px 10px rgba(255, 75, 31, 0.3);
-}
-
-/* ========== 卡片容器 ========== */
-form, .result-container {
-    background-color: #1e1e1e;
-    padding: 40px;
-    border-radius: 16px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    width: 100%;
-    max-width: 700px;
-    border: 1px solid #333;
-    box-sizing: border-box;
-}
-
-.result-container {
-    max-width: 1000px;
-}
-
-/* ========== 輸入元件 ========== */
-label {
-    display: block;
-    margin-top: 25px;
-    margin-bottom: 10px;
-    color: #b0b0b0;
-    font-size: 0.95rem;
-}
-
-input[type="text"],
-input[type="file"],
-select {
-    width: 100%;
-    padding: 15px;
-    border-radius: 10px;
-    border: 1px solid #444;
-    background-color: #2d2d2d;
-    color: white;
-    font-size: 1rem;
-    box-sizing: border-box;
-    transition: border-color 0.3s;
-}
-
-input[type="text"]:focus,
-select:focus {
-    border-color: #ff512f;
-    outline: none;
-}
-
-input[type="file"] {
-    background: #2a2a2a;
-    border: 2px dashed #444;
-}
-
-/* ========== 按鈕 ========== */
-button, .back-button {
-    width: 100%;
-    padding: 16px;
-    margin-top: 35px;
-    border: none;
-    border-radius: 30px;
-    background: linear-gradient(135deg, #ff4b1f 0%, #ff9068 100%);
-    color: white;
-    font-size: 1.1rem;
-    font-weight: bold;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.3s;
-    text-decoration: none;
-    display: inline-block;
+    letter-spacing: 2px;
     text-align: center;
-    box-sizing: border-box;
+    filter: drop-shadow(0 2px 5px rgba(255, 75, 31, 0.2));
 }
 
-button:hover, .back-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(255, 75, 31, 0.4);
-}
-
-.back-button {
-    background: #333;
-    box-shadow: none;
-    width: auto;
-    padding: 12px 40px;
-    margin-top: 30px;
-}
-
-.back-button:hover {
-    background: #444;
-}
-
-/* ========== 滑桿區域 ========== */
-#rangeContainer {
-    background-color: #252525;
-    padding: 20px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    border: 1px solid #333;
-}
-
-.time-label {
-    color: #ff512f;
-    font-family: monospace;
-    font-weight: bold;
-    min-width: 60px;
-    text-align: center;
-}
-
-input[type="range"] {
-    -webkit-appearance: none;
-    background: transparent;
-    flex-grow: 1;
-}
-
-input[type="range"]::-webkit-slider-runnable-track {
-    width: 100%;
-    height: 6px;
-    background: #444;
-    border-radius: 3px;
-}
-
-input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    height: 20px;
-    width: 20px;
-    border-radius: 50%;
-    background: #ff512f;
-    margin-top: -7px;
-    cursor: pointer;
-}
-
-/* ========== 結果頁面樣式 ========== */
-.video-section {
-    background: #000;
-    border-radius: 12px;
-    overflow: hidden;
-    margin-bottom: 30px;
-}
-
-video {
-    width: 100%;
-    display: block;
-}
-
-.move-display {
-    background: #2a2a2a;
-    padding: 15px;
-    text-align: center;
-    border-top: 1px solid #333;
-}
-
-/* 統計卡片 */
-.stats-section {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 15px;
-    margin-bottom: 30px;
-}
-
-.stat-card {
-    background: #252525;
-    padding: 20px;
-    border-radius: 12px;
-    text-align: center;
-    border: 1px solid #333;
-}
-
-.stat-card h3 {
-    font-size: 0.9rem;
-    color: #888;
-    margin: 0 0 10px 0;
-}
-
-.stat-card p {
-    font-size: 1.5rem;
-    color: #fff;
-    margin: 0;
-    font-weight: bold;
-}
-
-/* 時間軸列表 */
-.segments-container {
-    background: #252525;
-    border-radius: 12px;
-    overflow: hidden;
-    max-height: 500px;
-    overflow-y: auto;
-    border: 1px solid #333;
-}
-
-.segment-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px 20px;
-    border-bottom: 1px solid #333;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.segment-row:hover {
-    background-color: #333;
-}
-
-.segment-time {
-    color: #ff512f;
-    font-family: monospace;
-    font-weight: bold;
-    margin-right: 15px;
-}
-
-.segment-move {
-    font-size: 1.1rem;
-    font-weight: bold;
-}
-
-.segment-confidence {
-    font-size: 0.85rem;
-    padding: 4px 10px;
-    border-radius: 20px;
-    color: #121212;
-    font-weight: bold;
-}
-
-.conf-high { background: #4ade80; }
-.conf-medium { background: #facc15; }
-.conf-low { background: #f87171; }
-
-/* 載入畫面 */
+/* Loading 遮罩 */
 #loading {
     display: none;
     position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.9);
-    z-index: 2000;
+    inset: 0;
+    background: rgba(15, 15, 15, 0.95);
+    z-index: 9999;
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    backdrop-filter: blur(5px);
 }
-
 .spinner {
-    width: 50px;
-    height: 50px;
+    width: 50px; height: 50px;
     border: 4px solid rgba(255, 255, 255, 0.1);
-    border-top: 4px solid #ff512f;
+    border-top: 4px solid #ff4b1f;
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin-bottom: 20px;
 }
-
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.loading-title { color: #fff; margin: 0; }
+.loading-text { color: #888; margin-top: 10px; }
+
+/* 卡片容器 (共用：首頁、登入頁) */
+form, .auth-container, .auth-box {
+    width: 100%;
+    max-width: 800px; /* 首頁寬度 */
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    padding: 40px;
+    border-radius: 24px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--border-color);
+    box-sizing: border-box;
+    margin-bottom: 30px;
+}
+
+/* 登入框專用 (稍微窄一點比較好看) */
+.auth-box {
+    max-width: 450px;
+}
+
+/* === 結果頁寬度設定 === */
+.result-container {
+    width: 100%;
+    max-width: 1100px; /* 結果頁寬度 (適合 Dashboard) */
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    padding: 30px;
+    border-radius: 24px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--border-color);
+    box-sizing: border-box;
+    margin-bottom: 30px;
+}
+
+/* 錯誤提示框 */
+.error-box {
+    background: rgba(255, 59, 59, 0.15);
+    border: 1px solid #ff4b4b;
+    color: #ffb3b3;
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+    display: flex; align-items: center; font-weight: bold;
+}
+
+/* 輸入元件 */
+label {
+    font-weight: 600; color: #ff9068; margin: 25px 0 10px;
+    text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; display: block;
+}
+.icon-align { vertical-align: bottom; margin-right: 5px; }
+
+input[type="text"], input[type="password"], input[type="file"], select {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 16px;
+    border-radius: 12px;
+    color: #fff;
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+/* === 下拉選單修正 (強制黑底白字) === */
+select option {
+    background-color: #1e1e1e;
+    color: #ffffff;
+}
+
+input:focus, select:focus {
+    border-color: #ff4b1f; outline: none;
+    box-shadow: 0 0 0 4px rgba(255, 75, 31, 0.15);
+}
+
+/* 分隔線 */
+.divider-container { text-align: center; margin: 25px 0; position: relative; }
+.divider-text { background: var(--card-bg); padding: 0 15px; color: #666; position: relative; z-index: 1; }
+.divider-line { position: absolute; top: 50%; left: 0; right: 0; border-top: 1px solid rgba(255, 255, 255, 0.1); z-index: 0; }
+
+/* Slider */
+.options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px; }
+#rangeContainer {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex; align-items: center; gap: 15px;
+}
+.time-label { font-family: monospace; color: #ff9068; font-weight: bold; min-width: 40px; text-align: center; }
+input[type="range"] { flex: 1; cursor: pointer; accent-color: #ff4b1f; }
+
+/* 按鈕 */
+button, .back-button {
+    background: var(--primary-gradient);
+    border-radius: 14px;
+    padding: 15px;
+    width: 100%;
+    border: none;
+    color: white;
+    font-weight: bold;
+    font-size: 1.1rem;
+    cursor: pointer;
+    margin-top: 25px;
+    box-shadow: var(--glow-shadow);
+    transition: all 0.3s;
+    text-align: center; display: inline-block; box-sizing: border-box; text-decoration: none;
+    display: flex; justify-content: center; align-items: center; gap: 10px; /* 讓圖示文字置中 */
+}
+.back-button {
+    width: auto; padding: 10px 25px; margin-top: 0; font-size: 0.95rem;
+    background: #333; border: 1px solid #444; box-shadow: none;
+}
+.back-button:hover { background: #444; border-color: #666; transform: translateY(-2px); }
+button:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(255, 75, 31, 0.6); }
+
+
+/* ========== Dashboard 樣式 (結果頁專用) ========== */
+
+/* 1. 頂部數據卡片 */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.stat-card {
+    background: var(--panel-bg);
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    transition: transform 0.2s;
+}
+.stat-card:hover { transform: translateY(-5px); border-color: #ff4b1f; }
+.stat-card h3 { margin: 0 0 10px; font-size: 0.85rem; color: #aaa; letter-spacing: 1px; }
+.stat-card p { margin: 0; font-size: 1.8rem; font-weight: bold; color: #fff; }
+
+/* 2. 儀表板主佈局 (Grid) */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr; /* 左邊影片(2)，右邊數據(1) */
+    gap: 25px;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .dashboard-grid { grid-template-columns: 1fr; }
+}
+
+/* 3. 面板 (Panel) */
+.panel {
+    background: var(--panel-bg);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    border: 1px solid #333;
+    margin-bottom: 20px;
+    box-sizing: border-box;
+}
+
+.panel h3 {
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+    color: #fff;
+    border-left: 3px solid #ff4b1f;
+    padding-left: 10px;
+}
+
+/* 4. 影片區塊 */
+.video-wrapper {
+    width: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #000;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+}
+video { width: 100%; display: block; }
+
+.move-display {
+    text-align: center; margin-top: 15px; padding: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+/* 5. 圖表容器 */
+.chart-container {
+    position: relative;
+    width: 100%;
+    height: 250px;
+}
+
+/* 6. 時間軸捲動區 */
+.timeline-scroll {
+    max-height: 350px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+.timeline-scroll::-webkit-scrollbar { width: 6px; }
+.timeline-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+.timeline-scroll::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+.timeline-scroll::-webkit-scrollbar-thumb:hover { background: #ff4b1f; }
+
+.timeline-item {
+    padding: 12px;
+    border-bottom: 1px solid #2a2a2a;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-radius: 6px;
+}
+.timeline-item:hover { background: rgba(255, 255, 255, 0.08); }
+.timeline-item:last-child { border-bottom: none; }
