@@ -1,37 +1,36 @@
 import cv2
 import numpy as np
 import mediapipe as mp
-import pandas as pd
-from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
 import joblib
 import os
 import json
-from collections import deque
 
-# === 修正後的招式定義 ===
+# 全域招式定義 (Key 必須對應資料夾名稱，Value 是網頁顯示的文字)
+# 這裡設定為全英文顯示
 ALLOWED_MOVES_DEFAULT = {
-    'forward_weave': '正八',
-    'backward_weave': '反八',
-    'butterfly': '蝴蝶',
-    'head_roll': '繞頭',
-    'three_beat_weave': '三轉',
-    '2beat': '2beat',
-    '3beat': '3beat',
-    '4beat': '4beat',
-    'flower_3petal': '三葉花',
-    'flower_4petal': '四葉花',
-    'continuous_toss': '連拋',
-    'crosser': 'crosser',
-    '4petal': '四葉',
-    '4petal_iso': '四葉(加iso)',
-    'side_4petal': '側四葉',
-    'cap': 'cap',
-    'stall': '停球',
-    'isolation': 'isolation'
+    '1-handed spiral wraps': '1-Handed Spiral Wraps',
+    '2-beat': '2-Beat',
+    '3-beat': '3-Beat',
+    '3-beat weave': '3-Beat Weave',
+    '3-beat weave with head roll': '3-Beat Weave with Head Roll',
+    '3-petal flower': '3-Petal Flower',
+    '4-beat': '4-Beat',
+    '4-petal': '4-Petal',
+    '4-petal flower': '4-Petal Flower',
+    '4-petal with isolation': '4-Petal with Isolation',
+    'Archer Weave': 'Archer Weave',
+    'Butterfly': 'Butterfly',
+    'Cap': 'Cap',
+    'Continuous toss': 'Continuous Toss',
+    'Crosser': 'Crosser',
+    'Head roll': 'Head Roll',
+    'Isolation': 'Isolation',
+    'Other': 'Other',
+    'Side 4-petal': 'Side 4-Petal',
+    'Stall': 'Stall',
+    'Stall chaser': 'Stall Chaser',
+    'The superman': 'The Superman'
 }
-ALLOWED_MOVE_KEYS = set(ALLOWED_MOVES_DEFAULT.keys())
 
 
 class FireDanceAnalyzer:
@@ -44,181 +43,97 @@ class FireDanceAnalyzer:
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5
         )
-
-        # 載入招式定義
-        self.moves = self._load_moves_definition()
-
+        self.moves = ALLOWED_MOVES_DEFAULT.copy()
         self.classifier = None
-        self.scaler = StandardScaler()
+        self.scaler = None
         self.is_trained = False
-
-        # 用於計算速度的上一幀記錄
         self.prev_landmarks_array = None
 
     def reset_history(self):
-        """重置歷史記錄（在處理新影片開始時調用）"""
         self.prev_landmarks_array = None
-
-    def _load_moves_definition(self):
-        """載入招式定義"""
-        # 嘗試從模型載入
-        model_file = 'fire_dance_model.pkl'
-        if os.path.exists(model_file):
-            try:
-                model_data = joblib.load(model_file)
-                if 'moves' in model_data:
-                    return {k: v for k, v in model_data['moves'].items() if k in ALLOWED_MOVE_KEYS}
-            except Exception:
-                pass
-
-        # 嘗試從配置檔載入
-        config_file = 'move_config.json'
-        if os.path.exists(config_file):
-            try:
-                with open(config_file, 'r', encoding='utf-8') as f:
-                    config = json.load(f)
-                    moves = config.get('moves', {})
-                    filtered = {k: v for k, v in moves.items() if k in ALLOWED_MOVE_KEYS}
-                    if filtered:
-                        return filtered
-            except Exception:
-                pass
-
-        return ALLOWED_MOVES_DEFAULT.copy()
-
-    def extract_pose_features(self, landmarks):
-        """提取姿勢特徵（含動態速度特徵）"""
-        if not landmarks:
-            return None
-
-        # 獲取關鍵點座標
-        points = []
-        for landmark in landmarks.landmark:
-            points.append([landmark.x, landmark.y, landmark.visibility])
-        points = np.array(points)
-
-        # === 1. 靜態幾何特徵 ===
-        left_arm_angle = self._calculate_angle(points[11], points[13], points[15])
-        right_arm_angle = self._calculate_angle(points[12], points[14], points[16])
-
-        left_arm_extension = self._calculate_arm_extension(points[11], points[13], points[15])
-        right_arm_extension = self._calculate_arm_extension(points[12], points[14], points[16])
-
-        body_center_x = (points[11][0] + points[12][0]) / 2
-        body_center_y = (points[11][1] + points[12][1]) / 2
-
-        left_hand_rel_x = points[15][0] - body_center_x
-        left_hand_rel_y = points[15][1] - body_center_y
-        right_hand_rel_x = points[16][0] - body_center_x
-        right_hand_rel_y = points[16][1] - body_center_y
-
-        left_hand_height = points[15][1]
-        right_hand_height = points[16][1]
-        hands_height_diff = abs(left_hand_height - right_hand_height)
-        hands_distance = np.linalg.norm(points[15][:2] - points[16][:2])
-
-        arm_symmetry = abs(left_arm_angle - right_arm_angle) / 180.0
-        body_tilt = self._calculate_body_tilt(points[11], points[12], points[23], points[24])
-        shoulder_width = np.linalg.norm(points[11][:2] - points[12][:2])
-        hands_crossed = 1 if left_hand_rel_x > right_hand_rel_x else 0
-
-        left_hand_overhead = 1 if points[15][1] < points[11][1] - 0.1 else 0
-        right_hand_overhead = 1 if points[16][1] < points[12][1] - 0.1 else 0
-
-        left_hand_side = 1 if abs(left_hand_rel_x) > shoulder_width else 0
-        right_hand_side = 1 if abs(right_hand_rel_x) > shoulder_width else 0
-
-        left_arm_spread = abs(left_hand_rel_x) / (shoulder_width + 0.001)
-        right_arm_spread = abs(right_hand_rel_x) / (shoulder_width + 0.001)
-
-        # === 2. 動態速度特徵 ===
-        # 計算手腕和手肘的移動速度 (dx, dy)
-        velocity_features = [0.0] * 8  # 左腕dx,dy, 右腕dx,dy, 左肘dx,dy, 右肘dx,dy
-
-        if self.prev_landmarks_array is not None:
-            # 索引: 15=左腕, 16=右腕, 13=左肘, 14=右肘
-            indices = [15, 16, 13, 14]
-            curr_pts = points[indices, :2]  # 只取 x, y
-            prev_pts = self.prev_landmarks_array[indices, :2]
-
-            # 計算位移向量
-            diffs = curr_pts - prev_pts
-            velocity_features = diffs.flatten().tolist()
-
-        # 更新上一幀記錄
-        self.prev_landmarks_array = points.copy()
-
-        # 組合所有特徵
-        base_features = [
-            left_arm_angle, right_arm_angle,
-            left_arm_extension, right_arm_extension,
-            left_hand_rel_x, left_hand_rel_y,
-            right_hand_rel_x, right_hand_rel_y,
-            left_hand_height, right_hand_height,
-            hands_height_diff, hands_distance,
-            arm_symmetry, body_tilt,
-            shoulder_width,
-            hands_crossed,
-            left_hand_overhead, right_hand_overhead,
-            left_hand_side, right_hand_side,
-            left_arm_spread, right_arm_spread
-        ]
-
-        # 合併靜態與動態特徵
-        final_features = np.array(base_features + velocity_features)
-
-        # 處理 NaN
-        final_features = np.nan_to_num(final_features)
-
-        return final_features
-
-    def _calculate_angle(self, point1, point2, point3):
-        a = np.array([point1[0], point1[1]])
-        b = np.array([point2[0], point2[1]])
-        c = np.array([point3[0], point3[1]])
-        ba = a - b
-        bc = c - b
-        cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
-        angle = np.arccos(np.clip(cosine_angle, -1.0, 1.0))
-        return np.degrees(angle)
-
-    def _calculate_body_tilt(self, left_shoulder, right_shoulder, left_hip, right_hip):
-        shoulder_center = (left_shoulder[:2] + right_shoulder[:2]) / 2
-        hip_center = (left_hip[:2] + right_hip[:2]) / 2
-        dx = shoulder_center[0] - hip_center[0]
-        dy = shoulder_center[1] - hip_center[1]
-        return np.arctan2(dx, dy)
-
-    def _calculate_arm_extension(self, shoulder, elbow, wrist):
-        upper_arm = np.linalg.norm(shoulder[:2] - elbow[:2])
-        forearm = np.linalg.norm(elbow[:2] - wrist[:2])
-        total_length = upper_arm + forearm
-        direct_distance = np.linalg.norm(shoulder[:2] - wrist[:2])
-        return direct_distance / (total_length + 1e-6)
-
-    def save_model(self, filepath):
-        model_data = {
-            'classifier': self.classifier,
-            'scaler': self.scaler,
-            'moves': self.moves
-        }
-        joblib.dump(model_data, filepath)
-        print(f"[INFO] 模型已保存到: {filepath}")
 
     def load_model(self, filepath):
         if os.path.exists(filepath):
             try:
-                model_data = joblib.load(filepath)
-                self.classifier = model_data['classifier']
-                self.scaler = model_data['scaler']
-                self.moves = model_data['moves']
+                data = joblib.load(filepath)
+                self.classifier = data['classifier']
+                self.scaler = data['scaler']
+                # 優先使用模型內儲存的招式表 (如果有的話)
+                if 'moves' in data:
+                    self.moves = data['moves']
+                # 如果模型內沒有 moves，或者您想強制使用上面的英文表，可以把上面那兩行註解掉
+                # 但通常建議讓模型帶著自己的招式表走
+
                 self.is_trained = True
-                print(f"[INFO] 模型已從 {filepath} 載入")
+                print(f"[INFO] 模型載入成功: {filepath}")
                 return True
             except Exception as e:
                 print(f"[ERROR] 模型載入失敗: {e}")
-                return False
         return False
 
-    def get_move_description(self, move_name):
-        return self.moves.get(move_name, move_name)
+    def extract_pose_features(self, landmarks):
+        """提取 30 維特徵 (包含防呆數學計算)"""
+        if not landmarks: return None
+
+        # 轉換為 Numpy 陣列
+        points = np.array([[lm.x, lm.y, lm.visibility] for lm in landmarks.landmark])
+
+        # --- 靜態特徵 ---
+        # 角度計算 (加入 + 1e-6 防止分母為 0)
+        left_arm_angle = self._calculate_angle(points[11], points[13], points[15])
+        right_arm_angle = self._calculate_angle(points[12], points[14], points[16])
+
+        left_arm_ext = self._calculate_ext(points[11], points[13], points[15])
+        right_arm_ext = self._calculate_ext(points[12], points[14], points[16])
+
+        body_center = (points[11][:2] + points[12][:2]) / 2
+        l_hand_rel = points[15][:2] - body_center
+        r_hand_rel = points[16][:2] - body_center
+
+        l_h, r_h = points[15][1], points[16][1]
+        h_diff = abs(l_h - r_h)
+        h_dist = np.linalg.norm(points[15][:2] - points[16][:2])
+
+        shoulder_w = np.linalg.norm(points[11][:2] - points[12][:2]) + 1e-6
+        arm_symm = abs(left_arm_angle - right_arm_angle) / 180.0
+        is_crossed = 1.0 if l_hand_rel[0] > r_hand_rel[0] else 0.0
+
+        l_overhead = 1.0 if points[15][1] < points[11][1] else 0.0
+        r_overhead = 1.0 if points[16][1] < points[12][1] else 0.0
+        l_side = 1.0 if abs(l_hand_rel[0]) > shoulder_w else 0.0
+        r_side = 1.0 if abs(r_hand_rel[0]) > shoulder_w else 0.0
+
+        static_features = [
+            left_arm_angle, right_arm_angle, left_arm_ext, right_arm_ext,
+            l_hand_rel[0], l_hand_rel[1], r_hand_rel[0], r_hand_rel[1],
+            l_h, r_h, h_diff, h_dist, arm_symm, 0.0,
+            shoulder_w, is_crossed, l_overhead, r_overhead, l_side, r_side,
+            abs(l_hand_rel[0]) / shoulder_w, abs(r_hand_rel[0]) / shoulder_w
+        ]
+
+        # --- 動態特徵 ---
+        velocity_features = [0.0] * 8
+        if self.prev_landmarks_array is not None:
+            indices = [15, 16, 13, 14]
+            diffs = points[indices, :2] - self.prev_landmarks_array[indices, :2]
+            velocity_features = diffs.flatten().tolist()
+
+        self.prev_landmarks_array = points.copy()
+
+        return np.nan_to_num(np.array(static_features + velocity_features))
+
+    def _calculate_angle(self, p1, p2, p3):
+        a, b, c = p1[:2], p2[:2], p3[:2]
+        ba, bc = a - b, c - b
+        # 加上 1e-6 避免分母為 0
+        cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
+        angle = np.arccos(np.clip(cosine_angle, -1.0, 1.0))
+        return np.degrees(angle)
+
+    def _calculate_ext(self, s, e, w):
+        arm_len = np.linalg.norm(s[:2] - e[:2]) + np.linalg.norm(e[:2] - w[:2])
+        direct = np.linalg.norm(s[:2] - w[:2])
+        return direct / (arm_len + 1e-6)
+
+    def get_move_description(self, code):
+        return self.moves.get(code, code)
