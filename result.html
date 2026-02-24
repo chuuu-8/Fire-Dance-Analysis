@@ -1,102 +1,186 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
-    <title>分析結果</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分析報告</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-<div class="result-container">
-    <h2>分析報告</h2>
 
-    <div class="video-section">
-        <video id="videoPlayer" controls playsinline>
-            <source src="{{ url_for('processed_file', filename=output_video) }}" type="video/mp4">
-            <source src="{{ url_for('processed_file', filename=output_video.replace('.mp4', '.avi')) }}" type="video/avi">
-            瀏覽器不支援播放
-        </video>
-        <div id="moveDisplay" class="move-display">
-            <div style="font-size: 1.2rem; font-weight: bold;">準備播放...</div>
-        </div>
+<div class="result-container">
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h1 style="margin: 0; font-size: 1.8rem;">分析 Dashboard</h1>
+        <a href="{{ url_for('index') }}" class="back-button">返回首頁</a>
     </div>
 
-    <div class="stats-section">
+    <div class="stats-grid">
         <div class="stat-card">
             <h3>總時長</h3>
             <p>{{ "%.1f"|format(total_frames/30) }}s</p>
         </div>
         <div class="stat-card">
-            <h3>識別率</h3>
+            <h3>動作識別率</h3>
             <p>{{ "%.1f"|format(analyzed_frames / total_frames * 100) }}%</p>
         </div>
-        {% if merged_timeline %}
         <div class="stat-card">
-            <h3>招式數</h3>
+            <h3>識別招式數</h3>
             <p>{{ merged_timeline|length }}</p>
         </div>
         <div class="stat-card">
-            <h3>最常出現</h3>
-            <p>
-                {% set ns = namespace(max=0, move='無') %}
-                {% for k, v in move_stats.items() %}
-                    {% if v > ns.max %}{% set ns.max = v %}{% set ns.move = k %}{% endif %}
-                {% endfor %}
-                {{ ns.move }}
-            </p>
+            <h3>最擅長招式</h3>
+            <p id="bestMove">計算中...</p>
         </div>
-        {% endif %}
     </div>
 
-    {% if merged_timeline %}
-    <h3>招式時間軸</h3>
-    <div class="segments-container">
-        {% for segment in merged_timeline %}
-        <div class="segment-row" onclick="jumpToTime({{ segment.start }})">
-            <div style="display:flex; align-items:center;">
-                <span class="segment-time">{{ "%.1f"|format(segment.start) }}s</span>
-                <span class="segment-move">{{ segment.move_zh }}</span>
+    <div class="dashboard-grid">
+
+        <div class="left-col">
+            <div class="panel">
+                <h3>動作回放</h3>
+                <div class="video-wrapper">
+                    <video id="videoPlayer" controls playsinline>
+                        <source src="{{ url_for('processed_file', filename=output_video) }}" type="video/mp4">
+                        您的瀏覽器不支援影片播放。
+                    </video>
+                </div>
+                <div id="moveDisplay" class="move-display">
+                    <div style="font-size: 1.1rem; font-weight: bold;">準備播放...</div>
+                </div>
             </div>
-            <div class="segment-confidence {% if segment.confidence > 0.8 %}conf-high{% elif segment.confidence > 0.5 %}conf-medium{% else %}conf-low{% endif %}">
-                {{ (segment.confidence * 100)|int }}%
+
+            <div class="panel">
+                <h3>穩定度分析</h3>
+                <div class="chart-container" style="height: 180px;">
+                    <canvas id="confidenceChart"></canvas>
+                </div>
             </div>
         </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div style="text-align: center; padding: 40px; color: #666;">
-        <p>未偵測到明確招式</p>
-    </div>
-    {% endif %}
 
-    <div style="text-align: center;">
-        <a href="{{ url_for('index') }}" class="back-button">回首頁</a>
+        <div class="right-col">
+
+            <div class="panel">
+                <h3>招式分佈</h3>
+                <div class="chart-container" style="height: 180px;">
+                    <canvas id="movesPieChart"></canvas>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>詳細時間軸</h3>
+                <div class="timeline-scroll">
+                    {% if merged_timeline %}
+                        {% for segment in merged_timeline %}
+                        <div class="timeline-item" onclick="jumpToTime({{ segment.start }})">
+                            <div style="display:flex; justify-content: space-between;">
+                                <span style="font-family: monospace; color: #ff9068;">{{ "%.1f"|format(segment.start) }}s</span>
+                                <strong style="color: #fff;">{{ segment.move_zh }}</strong>
+                            </div>
+                            <div style="font-size: 0.85rem; color: #aaa; margin-top: 5px;">
+                                持續: {{ segment.duration }}s | 信心度:
+                                <span style="color: {% if segment.confidence > 0.8 %}#4ade80{% elif segment.confidence > 0.6 %}#facc15{% else %}#ff4b1f{% endif %}">
+                                    {{ (segment.confidence * 100)|int }}%
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p style="color: #666; text-align: center; padding: 20px;">未偵測到明確招式</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
     const moves = {{ move_timeline|tojson }};
+    const moveStats = {{ move_stats|tojson }};
+    const mergedMoves = {{ merged_timeline|tojson }};
+
+    // 計算最擅長招式
+    let maxCount = 0;
+    let bestMove = "無";
+    for (const [key, value] of Object.entries(moveStats)) {
+        if (value > maxCount) { maxCount = value; bestMove = key; }
+    }
+    document.getElementById('bestMove').textContent = bestMove;
+
+    // 圓餅圖
+    const ctxPie = document.getElementById('movesPieChart').getContext('2d');
+    new Chart(ctxPie, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(moveStats),
+            datasets: [{
+                data: Object.values(moveStats),
+                backgroundColor: ['#ff4b1f', '#ff9068', '#00c6ff', '#a8e063', '#f7797d', '#fbd786'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'right', labels: { color: '#ccc', font: {size: 11} } } }
+        }
+    });
+
+    // 折線圖
+    const sampleRate = moves.length > 300 ? 5 : 1;
+    const labels = moves.filter((_, i) => i % sampleRate === 0).map(m => m.time.toFixed(1));
+    const dataConf = moves.filter((_, i) => i % sampleRate === 0).map(m => (m.confidence * 100).toFixed(0));
+
+    const ctxLine = document.getElementById('confidenceChart').getContext('2d');
+    new Chart(ctxLine, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: '動作標準度',
+                data: dataConf,
+                borderColor: '#4ade80',
+                backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true,
+                pointRadius: 0,
+                pointHoverRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                x: { ticks: { color: '#666', maxTicksLimit: 8 }, grid: { display: false } },
+                y: { min: 0, max: 100, ticks: { color: '#666' }, grid: { color: '#333' } }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // 影片控制
     const video = document.getElementById('videoPlayer');
     const moveDisplay = document.getElementById('moveDisplay');
-
     video.ontimeupdate = function() {
         let currentTime = video.currentTime;
         let currentMove = null;
         for (let i = moves.length - 1; i >= 0; i--) {
             if (moves[i].time <= currentTime) {
-                if (currentTime - moves[i].time < 1.5) currentMove = moves[i];
+                if (currentTime - moves[i].time < 1.0) currentMove = moves[i];
                 break;
             }
         }
-
         if (currentMove) {
             const conf = (currentMove.confidence * 100).toFixed(0);
             let color = "#ff4b1f";
             if(currentMove.confidence > 0.8) color = "#4ade80";
             else if(currentMove.confidence > 0.5) color = "#facc15";
-
             moveDisplay.innerHTML = `
-                <div style="font-size: 1.5rem; font-weight: bold; color: #fff;">${currentMove.move_zh}</div>
-                <div style="font-size: 0.9rem; color: #ccc; margin-top: 5px;">
+                <div style="font-size: 1.2rem; font-weight: bold; color: #fff;">${currentMove.move_zh}</div>
+                <div style="font-size: 0.9rem; color: #ccc; margin-top: 3px;">
                     信心度：<span style="color:${color}">${conf}%</span>
                 </div>
             `;
@@ -104,11 +188,7 @@
             moveDisplay.innerHTML = `<div style="color:#666">...</div>`;
         }
     };
-
-    function jumpToTime(time) {
-        video.currentTime = time;
-        video.play();
-    }
+    function jumpToTime(time) { video.currentTime = time; video.play(); }
 </script>
 </body>
 </html>
