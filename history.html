@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>我的練習紀錄</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="result-container">
+        <div class="dashboard-header">
+            <h1 style="margin: 0; font-size: 1.8rem;">分析紀錄</h1>
+            <a href="{{ url_for('index') }}" class="back-button">返回首頁</a>
+        </div>
+
+        {% if records %}
+            <div style="display: grid; gap: 15px;">
+                {% for record in records %}
+                <div class="panel" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0;">
+                    <div>
+                        <h3 style="margin: 0 0 5px 0; color: #ff9068;">{{ record.original_name }}</h3>
+                        <div style="font-size: 0.9rem; color: #888;">
+                            <span>{{ record.date.strftime('%Y-%m-%d %H:%M') }}</span> |
+                            <span>{{ record.duration }}s</span> |
+                            <span>最常出現: {{ record.best_move }}</span>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 1.2rem; font-weight: bold; color: {% if record.avg_confidence > 0.8 %}#4ade80{% else %}#facc15{% endif %};">
+                            {{ (record.avg_confidence * 100)|int }}%
+                        </div>
+                        <div style="font-size: 0.8rem; color: #666;">平均信心</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div style="text-align: center; padding: 50px; color: #666;">
+                <p>目前還沒有紀錄，快去上傳影片分析吧！</p>
+                <a href="{{ url_for('index') }}" class="back-button">開始第一次分析</a>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
