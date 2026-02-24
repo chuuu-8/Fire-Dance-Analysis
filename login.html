@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>會員登入</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        /* 專用的關閉按鈕樣式 */
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            color: #666;
+            text-decoration: none;
+            transition: color 0.3s;
+            cursor: pointer;
+        }
+        .close-btn:hover {
+            color: #ff4b1f; /* Hover 時變亮橘色 */
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <form action="/login" method="post" style="max-width: 400px; margin-top: 100px; position: relative;">
+
+        <a href="{{ url_for('index') }}" class="close-btn">
+            <span class="material-icons" style="font-size: 28px;">close</span>
+        </a>
+        <h2 style="text-align: center; color: #fff; margin-top: 0;">歡迎回來</h2>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="error-box" style="justify-content: center;">{{ messages[0] }}</div>
+            {% endif %}
+        {% endwith %}
+
+        <label>帳號</label>
+        <input type="text" name="username" required>
+
+        <label>密碼</label>
+        <input type="text" name="password" style="-webkit-text-security: disc;" required>
+
+        <button type="submit">登入</button>
+        <a href="{{ url_for('register') }}" class="back-button" style="text-align: center; margin-top: 15px;">還沒有帳號？去註冊</a>
+        <a href="{{ url_for('index') }}" style="display:block; text-align:center; margin-top:15px; color:#888; text-decoration:none; font-size: 0.9rem;">暫不登入，直接使用</a>
+    </form>
+</body>
+</html>
